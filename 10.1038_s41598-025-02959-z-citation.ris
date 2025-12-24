@@ -1,0 +1,17 @@
+TY  - JOUR
+AU  - Berger, Stefan
+AU  - Hosters, Norbert
+AU  - Möller, Matthias
+PY  - 2025
+DA  - 2025/05/29
+TI  - Trainable embedding quantum physics informed neural networks for solving nonlinear PDEs
+JO  - Scientific Reports
+SP  - 18823
+VL  - 15
+IS  - 1
+AB  - This paper proposes a novel approach for solving nonlinear partial differential equations (PDEs) with a quantum computer, the trainable embedding quantum physics informed neural network (TE-QPINN). We combine quantum machine learning (QML) with physics informed neural networks (PINNs) in a hybrid approach. By leveraging the advantages of classical and quantum computers, we can create algorithms that have a potential to be run on noisy intermediate-scale quantum devices (NISQ). We use feedforward neural networks (FNN) as problem-agnostic embedding functions, giving the used quantum circuit greater expressibility than previously introduced embedding. This expressibility allows us to solve a wide range of problems without using a problem specific ansatz. Additionally, we introduce a hybrid backpropagation algorithm that allows efficient updates of the used weights and biases in the FNN embedding functions. In this paper we showcase the capabilities of TE-QPINNs of a wide range of problems, including the two-dimensional Poisson, Burgers and Navier-Stokes equations. In direct comparison with classical PINNs, this approach showed an ability to achieve superior results while using the same number of parameters, highlighting their potential for more efficient optimization in high-dimensional parameter spaces, which could be transformative for future applications.
+SN  - 2045-2322
+UR  - https://doi.org/10.1038/s41598-025-02959-z
+DO  - 10.1038/s41598-025-02959-z
+ID  - Berger2025
+ER  - 
