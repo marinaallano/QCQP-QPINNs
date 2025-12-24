@@ -43,36 +43,15 @@ def circuit(x, basis=None):
  
     ## Cost Function
     ## Z-Magnetization as cost function
-    return qml.expval(qml.sum(*[qml.PauliZ(i) for i in range(N_WIRES)]))
+    return qml.expval(qml.sum(*[qml.PauliZ(i) for i in range(N_WIRES)]))  # output of the circuit is f(x)=<C>
 
-
-# Define FNN for the basis
-class FNNBasisNet(torch.nn.Module):
-    def __init__(self, n_hidden_layers, branch_width):
-        super().__init__()
-
-        self.n_hidden_layers = n_hidden_layers
-        self.branch_width = branch_width
-        self.layers = torch.nn.ModuleList()
-        self.layers.append(torch.nn.Linear(1, branch_width))
-        for i in range(n_hidden_layers - 1):
-            self.layers.append(torch.nn.Linear(branch_width, branch_width))
-        self.layers.append(torch.nn.Linear(branch_width, N_WIRES))
-    
-    def forward(self, x):
-        for i in range(self.n_hidden_layers):
-            x = torch.tanh(self.layers[i](x))
-        x = self.layers[self.n_hidden_layers](x)
-        return x
 
 def model(x):
     # Rescale input to [-0.95, 0.95]       
     x_rescaled = 0.95 * 2*x - 0.95
-    
-    if EMBEDDING == "FNN_BASIS":
-        return circuit_qnode(x_rescaled.T, basisNet(x_rescaled.unsqueeze(1)).T)
-    else:
-        return circuit_qnode(x_rescaled.T)  ## Compute the reference solution
+
+    return circuit_qnode(x_rescaled.T)  ## Compute the reference solution
+
 
 def derivatives_fnc(x, u):
     du_dx = 4*u - 6*u**2 + math.sin(50*x) + u*math.cos(25*x) - 0.5
@@ -109,43 +88,45 @@ def closure():
     l.backward()
     return l  ## Benchmark different configurations
 
-EMBEDDING_LIST = ["FNN_BASIS", "TOWER_CHEBYSHEV", "CHEBYSHEV" ]
 
 data = np.zeros((5,4,2)) # layer, qubits, (loss, MSE_re)
 
-for EMBEDDING in EMBEDDING_LIST:
-    
-    for k,N_LAYERS in enumerate([1,3,5,7,10]):
-        for l,N_WIRES in enumerate([2, 4, 6, 8]):
-            print(f"Embedding: {EMBEDDING} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES}")
+
+
+for k,N_LAYERS in enumerate([1,3,5,7,10]):
+    for l,N_WIRES in enumerate([2, 4, 6, 8]):
+        print(f"\t Layers: {N_LAYERS} \t Qubits: {N_WIRES}")
+        
+        tmp_loss = []
+        tmp_mse_ref = []
+        
+        for i in range(3):
             
-            tmp_loss = []
-            tmp_mse_ref = []
+            circuit_qnode = qml.QNode(circuit, device=qml.device("default.qubit", wires=N_WIRES))
+            theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
+
+            # Plot and save the circuit diagram for inspection
+            fig = qml.draw_mpl(circuit_qnode)(0.0)
+            fig.suptitle(f"Quantum circuit — Layers={N_LAYERS}, Qubits={N_WIRES}")
+            plt_fname = f"circuit_L{N_LAYERS}_Q{N_WIRES}.png"
+            fig.savefig(plt_fname, bbox_inches="tight")
+            plt.close(fig)
+
+            opt = torch.optim.LBFGS([theta], line_search_fn="strong_wolfe")
+
+            previous_loss = float('inf')
+            for i in range(500):
+                opt.step(closure)
+                print(f"Epoch {i}, Loss: {loss_fnc().item():.2E}", end="\r")
+
+                if previous_loss == loss_fnc().item():
+                    break
+                previous_loss = loss_fnc().item()
             
-            for i in range(3):
-                
-                circuit_qnode = qml.QNode(circuit, device=qml.device("default.qubit", wires=N_WIRES))
-                theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
+            tmp_loss.append(loss_fnc().item())
+            tmp_mse_ref.append(compute_MSE_ref())
+            
+        data[k,l,0] = np.mean(tmp_loss)
+        data[k,l,1] = np.mean(tmp_mse_ref)
 
-                if EMBEDDING == "FNN_BASIS":
-                    basisNet = FNNBasisNet(HIDDEN_LAYER_FNN, NEURONS_FNN).to(device)
-                    opt = torch.optim.LBFGS([theta, *basisNet.parameters()], line_search_fn="strong_wolfe")
-                else:
-                    opt = torch.optim.LBFGS([theta], line_search_fn="strong_wolfe")
-
-                previous_loss = float('inf')
-                for i in range(500):
-                    opt.step(closure)
-                    print(f"Epoch {i}, Loss: {loss_fnc().item():.2E}", end="\r")
-
-                    if previous_loss == loss_fnc().item():
-                        break
-                    previous_loss = loss_fnc().item()
-                
-                tmp_loss.append(loss_fnc().item())
-                tmp_mse_ref.append(compute_MSE_ref())
-                
-            data[k,l,0] = np.mean(tmp_loss)
-            data[k,l,1] = np.mean(tmp_mse_ref)
-
-            print(f"Final Loss: {loss_fnc().item():.2E} \t Iteration: {i} \t Embedding: {EMBEDDING} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES} \t Iterations: {i} \t MSE_ref {compute_MSE_ref():.2E}")
+        print(f"Final Loss: {loss_fnc().item():.2E} \t Iteration: {i} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES} \t Iterations: {i} \t MSE_ref {compute_MSE_ref():.2E}")
