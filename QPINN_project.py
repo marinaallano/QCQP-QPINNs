@@ -33,8 +33,8 @@ def circuit(x, basis=None):
     for i in range(N_LAYERS):
         for j in range(N_WIRES):
             # layer of Rz-Rx-Rz rotations
-            qml.RX(theta[i,j,0], wires=j)
-            qml.RY(theta[i,j,1], wires=j)
+            qml.RZ(theta[i,j,0], wires=j)
+            qml.RX(theta[i,j,1], wires=j)
             qml.RZ(theta[i,j,2], wires=j)
     
         for j in range(N_WIRES - 1):
@@ -93,40 +93,42 @@ data = np.zeros((5,4,2)) # layer, qubits, (loss, MSE_re)
 
 
 
-for k,N_LAYERS in enumerate([1,3,5,7,10]):
-    for l,N_WIRES in enumerate([2, 4, 6, 8]):
-        print(f"\t Layers: {N_LAYERS} \t Qubits: {N_WIRES}")
+# for k,N_LAYERS in enumerate([1,3,5,7,10]):
+#     for l,N_WIRES in enumerate([2, 4, 6, 8]):
+#         print(f"\t Layers: {N_LAYERS} \t Qubits: {N_WIRES}")
         
-        tmp_loss = []
-        tmp_mse_ref = []
+tmp_loss = []
+tmp_mse_ref = []
+N_LAYERS = 1
+N_WIRES = 2
         
-        for i in range(3):
+for i in range(3):
+    
+    circuit_qnode = qml.QNode(circuit, device=qml.device("default.qubit", wires=N_WIRES))
+    theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
+
+    # Plot and save the circuit diagram for inspection
+    fig, ax = qml.draw_mpl(circuit_qnode)(torch.tensor(0.0))
+    fig.suptitle(f"Quantum circuit — Layers={N_LAYERS}, Qubits={N_WIRES}")
+    plt_fname = f"circuit_L{N_LAYERS}_Q{N_WIRES}.png"
+    fig.savefig(plt_fname, bbox_inches="tight")
+    plt.close(fig)
+
+    opt = torch.optim.LBFGS([theta], line_search_fn="strong_wolfe")
+
+    previous_loss = float('inf')
+    for i in range(500):
+        opt.step(closure)
+        print(f"Epoch {i}, Loss: {loss_fnc().item():.2E}", end="\r")
+
+        if previous_loss == loss_fnc().item():
+            break
+        previous_loss = loss_fnc().item()
+    
+    tmp_loss.append(loss_fnc().item())
+    tmp_mse_ref.append(compute_MSE_ref())
             
-            circuit_qnode = qml.QNode(circuit, device=qml.device("default.qubit", wires=N_WIRES))
-            theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
+        # data[k,l,0] = np.mean(tmp_loss)
+        # data[k,l,1] = np.mean(tmp_mse_ref)
 
-            # Plot and save the circuit diagram for inspection
-            fig = qml.draw_mpl(circuit_qnode)(0.0)
-            fig.suptitle(f"Quantum circuit — Layers={N_LAYERS}, Qubits={N_WIRES}")
-            plt_fname = f"circuit_L{N_LAYERS}_Q{N_WIRES}.png"
-            fig.savefig(plt_fname, bbox_inches="tight")
-            plt.close(fig)
-
-            opt = torch.optim.LBFGS([theta], line_search_fn="strong_wolfe")
-
-            previous_loss = float('inf')
-            for i in range(500):
-                opt.step(closure)
-                print(f"Epoch {i}, Loss: {loss_fnc().item():.2E}", end="\r")
-
-                if previous_loss == loss_fnc().item():
-                    break
-                previous_loss = loss_fnc().item()
-            
-            tmp_loss.append(loss_fnc().item())
-            tmp_mse_ref.append(compute_MSE_ref())
-            
-        data[k,l,0] = np.mean(tmp_loss)
-        data[k,l,1] = np.mean(tmp_mse_ref)
-
-        print(f"Final Loss: {loss_fnc().item():.2E} \t Iteration: {i} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES} \t Iterations: {i} \t MSE_ref {compute_MSE_ref():.2E}")
+print(f"Final Loss: {loss_fnc().item():.2E} \t Iteration: {i} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES} \t Iterations: {i} \t MSE_ref {compute_MSE_ref():.2E}")
