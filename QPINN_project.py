@@ -34,13 +34,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 X_COLLOC_POINTS = 100
 BOUNDARY_SCALE = 10e1
 X_END = 1.0 
+map = "Chebyschev_tower"
 
 ##  Generate Domain
 # Generate Collocation Points
 x = torch.linspace(0.0, X_END, X_COLLOC_POINTS, device=device, requires_grad=True)
 
 # Directory to store result plots
-RESULTS_DIR = "results"
+RESULTS_DIR = "results_teresa"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
@@ -62,7 +63,7 @@ def derivatives_fnc(EDO, x, u):
 
 ## Create the Model
 # Define QPINN
-def circuit(x, map="feature_map", basis=None):
+def circuit(x, basis=None):
 
     # Quantum Feature Map Encoding: Product Feature Map
     if map == "feature_map":
@@ -75,7 +76,7 @@ def circuit(x, map="feature_map", basis=None):
 
     if map == "Chebyschev_tower":
         for i in range(N_WIRES):
-            qml.RY(2 * i * torch.arccos(x), wires=i)
+            qml.RY(2 * (i+1) * torch.arccos(x), wires=i)
 
     
     
@@ -143,7 +144,7 @@ def compute_MSE(EDO=1, save_pred=True):
 
     # Save prediction arrays for later analysis
     if save_pred:
-        pred_fname = os.path.join(RESULTS_DIR, f"pred_L{N_LAYERS}_Q{N_WIRES}_edo{EDO}.npz")
+        pred_fname = os.path.join(RESULTS_DIR, f"pred_L{N_LAYERS}_Q{N_WIRES}_{map}_edo{EDO}.npz")
         np.savez(pred_fname, x=x_np, pred=pred_np, ref=ref_np)
 
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -154,7 +155,7 @@ def compute_MSE(EDO=1, save_pred=True):
     ax.set_title(f"QPINN Prediction vs Reference Solution. MSE = {mse:.2E}")
     ax.set_xlabel("x")
     ax.set_ylabel("f(x)")
-    plt_fname = os.path.join(RESULTS_DIR, f"L{N_LAYERS}_Q{N_WIRES}_mse_edo{EDO}.png")
+    plt_fname = os.path.join(RESULTS_DIR, f"L{N_LAYERS}_Q{N_WIRES}_{map}_mse_edo{EDO}.png")
     fig.savefig(plt_fname, bbox_inches="tight")
     plt.show()
     plt.close(fig)
@@ -217,7 +218,7 @@ theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
 # Plot and save the circuit diagram for inspection
 fig, ax = qml.draw_mpl(circuit_qnode)(torch.tensor(0.0))
 fig.suptitle(f"Quantum circuit — Layers={N_LAYERS}, Qubits={N_WIRES}")
-plt_fname = os.path.join(RESULTS_DIR, f"circuit_L{N_LAYERS}_Q{N_WIRES}.png")
+plt_fname = os.path.join(RESULTS_DIR, f"circuit_L{N_LAYERS}_Q{N_WIRES}_{map}.png")
 fig.savefig(plt_fname, bbox_inches="tight")
 plt.show()
 plt.close(fig)
@@ -245,7 +246,7 @@ fig2, ax2 = plt.subplots(figsize=(6, 3))
 ax2.plot(range(len(loss_history)), loss_history, marker='o')
 ax2.set_xlabel('Iteration')
 ax2.set_ylabel('Loss')
-ax2.set_title(f'Loss history — L{N_LAYERS} Q{N_WIRES} EDO{EDO}')
+ax2.set_title(f'Loss history — L{N_LAYERS} Q{N_WIRES} {map} EDO{EDO}')
 fig2.savefig(loss_fname, bbox_inches='tight')
 np.save(loss_data_fname, np.array(loss_history))
 plt.close(fig2)
