@@ -6,23 +6,6 @@ import numpy as np
 import os
 from scipy.integrate import solve_ivp
 
-plt.rcParams.update({
-    'text.usetex': True,
-    'text.latex.preamble': r'\usepackage{amsmath}',
-    'font.family': 'serif',
-    'font.size': 12,
-    'axes.labelsize': 14,
-    'axes.titlesize': 15,
-    'legend.fontsize': 12,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
-    'axes.linewidth': 1.1,
-    'xtick.direction': 'in',
-    'ytick.direction': 'in',
-    'xtick.major.size': 5,
-    'ytick.major.size': 5,
-})
-
 torch.manual_seed(42)
 torch.set_num_threads(30)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,11 +44,24 @@ def derivatives_fnc(EDO, x, u):
 
 ## Create the Model
 # Define QPINN
-def circuit(x, basis=None):
+def circuit(x, map="feature_map", basis=None):
 
     # Quantum Feature Map Encoding: Product Feature Map
-    for i in range(N_WIRES):
-        qml.RY(torch.arcsin(x), wires=i)
+    if map == "feature_map":
+        for i in range(N_WIRES):
+            qml.RY(torch.arcsin(x), wires=i)
+    
+    if map == "Chebyshev_sparse":
+        for i in range(N_WIRES):
+            qml.RY(2 * torch.arccos(x), wires=i)
+
+    if map == "Chebyschev_tower":
+        for i in range(N_WIRES):
+            qml.RY(2 * i * torch.arccos(x), wires=i)
+
+    
+
+    
 
     # Variational Quantum Circuit: Hardware Efficient Ansatz
     for i in range(N_LAYERS):
