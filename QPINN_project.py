@@ -6,22 +6,6 @@ import numpy as np
 import os
 from scipy.integrate import solve_ivp
 
-plt.rcParams.update({
-    'text.usetex': True,
-    'text.latex.preamble': r'\usepackage{amsmath}',
-    'font.family': 'serif',
-    'font.size': 12,
-    'axes.labelsize': 14,
-    'axes.titlesize': 15,
-    'legend.fontsize': 12,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
-    'axes.linewidth': 1.1,
-    'xtick.direction': 'in',
-    'ytick.direction': 'in',
-    'xtick.major.size': 5,
-    'ytick.major.size': 5,
-})
 
 
 torch.manual_seed(42)
@@ -148,8 +132,10 @@ def compute_MSE(EDO=1, save_pred=True):
         np.savez(pred_fname, x=x_np, pred=pred_np, ref=ref_np)
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(x_np, pred_np, linestyle='--', label="Prediction")
-    ax.plot(x_np, ref_np, label="Reference")
+    #ax.plot(x_np, pred_np, linestyle='--', label="Prediction")
+    #ax.plot(x_np, ref_np, label="Reference")
+    ax.plot(x_np, ref_np, label="Reference", linewidth=3, zorder=1)
+    ax.plot(x_np, pred_np, linestyle='--', label="Prediction", linewidth=2, zorder=2)
     ax.legend()
     ax.grid(True)
     ax.set_title(f"QPINN Prediction vs Reference Solution. MSE = {mse:.2E}")
@@ -164,28 +150,38 @@ def compute_MSE(EDO=1, save_pred=True):
 
 def loss_diff_fnc():
     u = rescale(x) 
+    u_at_0 = u[0]
     du_dx = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0]
 
     if EDO == 1:
         res = du_dx - (4*u - 6*u**2 + torch.sin(50*x) + u*torch.cos(25*x) - 0.5)
+        boundary_loss = (u_at_0 - 0.75)**2
     elif EDO == 2:
         lamb = 8
         kappa = 0.1
         res = du_dx + lamb*u*(kappa + torch.tan(lamb*x))
+        boundary_loss = (u_at_0 - 1)**2
     elif EDO == 3:
         lamb = 20
         kappa = 0.1
         res = du_dx + lamb*u*(kappa + torch.tan(lamb*x))
-    return torch.mean(res**2)
+        boundary_loss = (u_at_0 - 1)**2
+    
 
-def loss_boundary_fnc():
+    return torch.mean(res**2), boundary_loss
+
+"""def loss_boundary_fnc():
     u_0 = rescale(torch.zeros_like(x))
-    return torch.mean((u_0 - 0.75)**2)
+    if EDO == 1:
+        boundary_condition = 0.75
+    if EDO == 2 or EDO == 3:
+        boundary_condition = 1
+    return torch.mean((u_0 - boundary_condition)**2)"""
 
 def loss_fnc():
 
-    loss_diff     = loss_diff_fnc()
-    loss_boundary = loss_boundary_fnc()
+    loss_diff, loss_boundary     = loss_diff_fnc()
+    #loss_boundary = loss_boundary_fnc()
 
     return BOUNDARY_SCALE*loss_boundary + loss_diff
 
@@ -206,9 +202,9 @@ data = np.zeros((5,4,2)) # layer, qubits, (loss, MSE_re)
         
 tmp_loss = []
 tmp_mse_ref = []
-N_LAYERS = 2
+N_LAYERS = 5
 N_WIRES = 6
-EDO = 3 # SELECT EDO HERE
+EDO = 2 # SELECT EDO HERE
         
 
 
@@ -227,14 +223,19 @@ opt = torch.optim.LBFGS([theta], line_search_fn="strong_wolfe")
 
 previous_loss = float('inf')
 loss_history = []
+patience = 0
 for epoch in range(500):
     opt.step(closure)
     current_loss = loss_fnc().item()
     loss_history.append(current_loss)
     print(f"Epoch {epoch}, Loss: {current_loss:.2E}", end="\r")
 
-    if previous_loss == current_loss:
-        break
+    if abs(previous_loss - current_loss)< 1e-12:
+        patience += 1
+    
+    if patience > 8:
+        break 
+
     previous_loss = current_loss
 
 final_loss = loss_fnc().item()
