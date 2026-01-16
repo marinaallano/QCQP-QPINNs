@@ -83,7 +83,7 @@ def circuit(x, basis=None):
     
     
 
-    # Variational Quantum Circuit: Hardware Efficient Ansatz
+    # Variational Quantum Circuit: Hardware Efficient Ansatz (paper **)
     for i in range(N_LAYERS):
         for j in range(N_WIRES):
             # layer of Rz-Rx-Rz rotations
@@ -100,6 +100,16 @@ def circuit(x, basis=None):
 
         for j in range((N_WIRES - 1) // 2):
             qml.CNOT(wires=[2*j+1,2*j+2]) # second layer: odd wires
+
+    # Variational Quantum Circuit: Hardware Efficient Ansatz (paper Burger)
+        # for i in range(N_LAYERS):
+        #     for j in range(N_WIRES):
+        #         qml.RX(theta[i,j,0], wires=j)
+        #         qml.RY(theta[i,j,1], wires=j)
+        #         qml.RZ(theta[i,j,2], wires=j)
+        
+        #     for j in range(N_WIRES - 1):
+        #         qml.CNOT(wires=[j, j + 1])
  
     ## Cost Function
     ## Z-Magnetization as cost function
@@ -180,9 +190,14 @@ def loss_diff_fnc():
         res = du_dx + lamb*u*(kappa + torch.tan(lamb*x))
     return torch.mean(res**2)
 
+# def loss_boundary_fnc():
+#     u_0 = rescale(torch.zeros_like(x))
+#     return torch.mean((u_0 - 0.75)**2)
+
 def loss_boundary_fnc():
-    u_0 = rescale(torch.zeros_like(x))
-    return torch.mean((u_0 - 0.75)**2)
+    x0 = torch.zeros(1, device=device, requires_grad=True)
+    u_0 = rescale(x0)
+    return (u_0 - 0.75)**2
 
 def loss_fnc():
 
@@ -208,11 +223,10 @@ data = np.zeros((5,4,2)) # layer, qubits, (loss, MSE_re)
         
 tmp_loss = []
 tmp_mse_ref = []
-N_LAYERS = 12
-N_WIRES = 4
-EDO = 3 # SELECT EDO HERE
+N_LAYERS = 5
+N_WIRES = 6
+EDO = 2 # SELECT EDO HERE
         
-
 
 circuit_qnode = qml.QNode(circuit, device=qml.device("default.qubit", wires=N_WIRES))
 theta = torch.rand(N_LAYERS, N_WIRES, 3, device=device, requires_grad=True)
