@@ -5,6 +5,8 @@ import math
 import numpy as np
 import os
 from scipy.integrate import solve_ivp
+import time
+start_time = time.perf_counter()
 
 plt.rcParams.update({
     'text.usetex': True,
@@ -206,8 +208,8 @@ data = np.zeros((5,4,2)) # layer, qubits, (loss, MSE_re)
         
 tmp_loss = []
 tmp_mse_ref = []
-N_LAYERS = 2
-N_WIRES = 6
+N_LAYERS = 12
+N_WIRES = 4
 EDO = 3 # SELECT EDO HERE
         
 
@@ -257,3 +259,8 @@ tmp_mse_ref.append(compute_MSE(EDO=EDO, save_pred=True))
     # data[k,l,1] = np.mean(tmp_mse_ref)
 
 print(f"Final Loss: {loss_fnc().item():.2E} \t Layers: {N_LAYERS} \t Qubits: {N_WIRES} \t MSE_ref {compute_MSE():.2E}")
+
+end_time = time.perf_counter()
+elapsed_time = end_time - start_time
+
+print(f"\nTotal execution time: {elapsed_time:.2f} seconds")
