@@ -5,6 +5,8 @@ import math
 import numpy as np
 import os
 from scipy.integrate import solve_ivp
+import time
+start_time = time.perf_counter()
 
 plt.rcParams.update({
     'text.usetex': True,
