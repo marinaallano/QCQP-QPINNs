@@ -1,0 +1,13 @@
+
+
+
+In this repository, we present the implementation of a QPINN to solve both ordinary differential equations (ODE) and partial differential equations (PDE). The work was divided in these two parts, and separate implementation were developed to handle different types of equations.
+
+In the QPINN folder, you can find two implementations, 'ODE_QPINN', and 'PDE_QPINN', which contain the relevant codes.
+
+You can tune different variables, such as the equations to solve (EDO), number of qubits, product map to use,..., by changing the corresponding variables.
+
+Make sure you write the name of the map correctly, or you may get an error of this type,
+
+IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `tensor.item<T>()` in C++ to convert a 0-dim tensor to a number
+
